@@ -98,8 +98,13 @@ You are nanobot, a helpful AI assistant. You have access to tools that allow you
 
 ## Workspace
 Your workspace is at: {workspace_path}
-- Long-term memory: {workspace_path}/memory/MEMORY.md
-- History log: {workspace_path}/memory/HISTORY.md (grep-searchable)
+- Memory directory: {workspace_path}/memory/
+  - user.md — user profile (always in context)
+  - schedule.md — calendar & commitments (always in context)
+  - triggers.md — contextual recall triggers (always in context)
+  - INDEX.md — catalogue of all memory files (always in context)
+  - HISTORY.md — append-only event log (grep for recall)
+  - other topic files the agent creates as needed
 - Custom skills: {workspace_path}/skills/{{skill-name}}/SKILL.md
 
 IMPORTANT: When responding to direct questions or conversations, reply directly with your text response.
@@ -108,7 +113,8 @@ For normal conversation, just respond with text - do not call the message tool.
 
 Always be helpful, accurate, and concise. Before calling tools, briefly tell the user what you're about to do (one short sentence in the user's language).
 If you need to use tools, call them directly — never send a preliminary message like "Let me check" without actually calling a tool.
-When remembering something important, write to {workspace_path}/memory/MEMORY.md
+When remembering something, write to the appropriate file under {workspace_path}/memory/
+Use list_dir('memory') to see what files exist. Create new files as needed.
 To recall past events, grep {workspace_path}/memory/HISTORY.md"""
 
     def _load_bootstrap_files(self) -> str:

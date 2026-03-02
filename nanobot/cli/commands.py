@@ -211,7 +211,10 @@ You are a helpful AI assistant. Be concise, accurate, and friendly.
 - Always explain what you're doing before taking actions
 - Ask for clarification when the request is ambiguous
 - Use tools to help accomplish tasks
-- Remember important information in memory/MEMORY.md; past events are logged in memory/HISTORY.md
+- Remember important facts in memory/ — check memory/INDEX.md for what's there
+- Save appointments/deadlines to memory/schedule.md immediately
+- Save contextual reminders (places, activities) to memory/triggers.md
+- Past events are logged in memory/HISTORY.md (search with grep)
 """,
         "SOUL.md": """# Soul
 
@@ -247,40 +250,120 @@ Information about the user goes here.
             file_path.write_text(content, encoding="utf-8")
             console.print(f"  [dim]Created {filename}[/dim]")
 
-    # Create memory directory and MEMORY.md
+    # Create memory directory with seed files
     memory_dir = workspace / "memory"
     memory_dir.mkdir(exist_ok=True)
-    memory_file = memory_dir / "MEMORY.md"
-    if not memory_file.exists():
-        memory_file.write_text(
-            """# Long-term Memory
 
-This file stores important information that should persist across sessions.
+    _create_seed_file(
+        memory_dir / "user.md",
+        """# User
 
-## User Information
+## Identity
 
-(Important facts about the user)
+- name:
+- location:
+- timezone:
+- occupation:
 
-## Preferences
+## Communication Preferences
 
-(User preferences learned over time)
+- language:
+- style: (casual/formal)
+- response_length: (brief/detailed)
+
+## Technical Environment
+
+- os:
+- editor:
+- shell:
+
+## Interests
+
+(Topics the user cares about)
 
 ## Important Notes
 
-(Things to remember)
+(Anything else the agent should always remember)
 """,
-            encoding="utf-8",
-        )
-        console.print("  [dim]Created memory/MEMORY.md[/dim]")
+        "memory/user.md",
+    )
 
+    _create_seed_file(
+        memory_dir / "schedule.md",
+        """# Schedule
+
+## Recurring
+
+(Weekly/daily recurring events)
+
+## Upcoming
+
+(One-time appointments, deadlines, commitments — sorted by date)
+
+## Completed
+
+(Move past events here to keep Upcoming clean)
+""",
+        "memory/schedule.md",
+    )
+
+    _create_seed_file(
+        memory_dir / "triggers.md",
+        """# Triggers
+
+Context-triggered reminders. When the user's message matches a trigger,
+proactively surface the associated information.
+
+## Greetings / Start of Day
+
+- Show today's schedule from [[schedule.md]]
+- Mention any pending deadlines or tasks
+
+## Locations
+
+(When the user mentions going to a specific place — add subsections as needed)
+
+## Activities
+
+(When the user mentions starting a specific activity — add subsections as needed)
+
+## Custom Triggers
+
+(User-defined trigger → action pairs)
+""",
+        "memory/triggers.md",
+    )
+
+    _create_seed_file(
+        memory_dir / "INDEX.md",
+        """# Memory Index
+
+Last updated: (initialised)
+
+## Files
+
+- [[user.md]] — User profile, preferences, and identity
+- [[schedule.md]] — Appointments, deadlines, recurring events
+- [[triggers.md]] — Context-triggered reminders (greetings, locations, activities)
+""",
+        "memory/INDEX.md",
+    )
+
+    # HISTORY.md stays empty
     history_file = memory_dir / "HISTORY.md"
     if not history_file.exists():
         history_file.write_text("", encoding="utf-8")
         console.print("  [dim]Created memory/HISTORY.md[/dim]")
 
     # Create skills directory for custom user skills
-    skills_dir = workspace / "skills"
-    skills_dir.mkdir(exist_ok=True)
+    (workspace / "skills").mkdir(exist_ok=True)
+
+
+def _create_seed_file(path: Path, content: str, display_name: str) -> None:
+    """Write a seed file only if it does not already exist."""
+    if not path.exists():
+        path.write_text(content, encoding="utf-8")
+        console.print(f"  [dim]Created {display_name}[/dim]")
 
 
 def _make_provider(config: Config):
