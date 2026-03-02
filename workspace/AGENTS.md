@@ -20,8 +20,14 @@ You have access to:
 
 ## Memory
 
-- `memory/MEMORY.md` — long-term facts (preferences, context, relationships)
-- `memory/HISTORY.md` — append-only event log, search with grep to recall past events
+- `memory/` — multi-file memory directory
+  - `user.md` — user profile, preferences, core facts (always in context)
+  - `schedule.md` — appointments, deadlines, recurring events (always in context)
+  - `triggers.md` — context-triggered reminders (always in context)
+  - `INDEX.md` — catalogue of all memory files (always in context)
+  - `HISTORY.md` — append-only event log, search with grep to recall past events
+- Save important facts to the appropriate memory file immediately
+- Check `INDEX.md` before creating new files to avoid duplicates
 
 ## Scheduled Reminders
 
@@ -31,7 +37,7 @@ nanobot cron add --name "reminder" --message "Your message" --at "YYYY-MM-DDTHH:
 ```
 Get USER_ID and CHANNEL from the current session (e.g., `8281248569` and `telegram` from `telegram:8281248569`).
 
-**Do NOT just write reminders to MEMORY.md** — that won't trigger actual notifications.
+**Do NOT just write reminders to memory files** — that won't trigger actual notifications. Use cron for time-based reminders. Use `memory/triggers.md` for context-triggered reminders (e.g., "when I go to the store, remind me to buy milk").
 
 ## Heartbeat Tasks
 
