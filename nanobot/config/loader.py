@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from nanobot.config.schema import Config
 
 
@@ -28,6 +30,8 @@ def load_config(config_path: Path | None = None) -> Config:
     Returns:
         Loaded configuration object.
     """
+    load_dotenv()
+
     path = config_path or get_config_path()
 
     if path.exists():

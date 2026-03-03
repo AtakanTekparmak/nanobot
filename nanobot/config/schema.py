@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 from pydantic_settings import BaseSettings
 
@@ -23,6 +23,7 @@ class TelegramConfig(Base):
         None  # HTTP/SOCKS5 proxy URL, e.g. "http://127.0.0.1:7890" or "socks5://127.0.0.1:1080"
     )
     reply_to_message: bool = False  # If true, bot replies quote the original message
+    groq_api_key: str = ""
 
 
 class EmailConfig(Base):
@@ -221,5 +222,21 @@ class Config(BaseSettings):
             if spec and spec.is_gateway and spec.default_api_base:
                 return spec.default_api_base
         return None
+
+    @model_validator(mode="after")
+    def _apply_env_overrides(self) -> "Config":
+        """Map common env var names to config fields."""
+        import os
+
+        env_map = {
+            "OPENROUTER_API_KEY": (self.providers.openrouter, "api_key"),
+            "GROQ_API_KEY": (self.channels.telegram, "groq_api_key"),
+        }
+        for env_var, (obj, attr) in env_map.items():
+            if not getattr(obj, attr):
+                val = os.environ.get(env_var, "")
+                if val:
+                    setattr(obj, attr, val)
+        return self
 
     model_config = ConfigDict(env_prefix="NANOBOT_", env_nested_delimiter="__")

@@ -380,7 +380,17 @@ class TelegramChannel(BaseChannel):
 
                 media_paths.append(str(file_path))
 
-                content_parts.append(f"[{media_type}: {file_path}]")
+                # Transcribe voice/audio if Groq API key is configured
+                if media_type in ("voice", "audio") and self.config.groq_api_key:
+                    from nanobot.providers.transcription import transcribe_audio
+
+                    transcription = await transcribe_audio(file_path, self.config.groq_api_key)
+                    if transcription:
+                        content_parts.append(f"[transcription: {transcription}]")
+                    else:
+                        content_parts.append(f"[{media_type}: {file_path}]")
+                else:
+                    content_parts.append(f"[{media_type}: {file_path}]")
 
                 logger.debug("Downloaded {} to {}", media_type, file_path)
             except Exception as e:
