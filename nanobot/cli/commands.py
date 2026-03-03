@@ -191,6 +191,19 @@ def onboard():
     # Create default bootstrap files
     _create_workspace_templates(workspace)
 
+    # Set up SearXNG
+    from nanobot.docker.searxng import docker_available, ensure_settings
+
+    if docker_available():
+        from nanobot.config.loader import get_data_dir
+
+        ensure_settings(get_data_dir())
+        console.print("[green]✓[/green] SearXNG config created at ~/.nanobot/searxng/")
+        console.print("  [dim]Container will start automatically with 'nanobot gateway'[/dim]")
+    else:
+        console.print("[yellow]⚠[/yellow] Docker not found — SearXNG web search won't be available")
+        console.print("  [dim]Install Docker to enable self-hosted web search[/dim]")
+
     console.print(f"\n{__logo__} nanobot is ready!")
     console.print("\nNext steps:")
     console.print("  1. Add your API key to [cyan]~/.nanobot/config.json[/cyan]")
@@ -400,6 +413,27 @@ def _make_provider(config: Config):
     )
 
 
+def _ensure_searxng(config: Config) -> None:
+    """Start SearXNG container if enabled, populating config.tools.web.searxng_url.
+
+    Mutates config.tools.web.searxng_url in-place (runtime only — not persisted to config.json).
+    """
+    if not config.tools.web.searxng_enabled:
+        return
+    if config.tools.web.searxng_url:
+        return  # Already set (e.g. via SEARXNG_URL env var or explicit config)
+
+    from nanobot.docker.searxng import docker_available, start as start_searxng
+
+    if not docker_available():
+        return
+
+    from nanobot.config.loader import get_data_dir
+
+    url = start_searxng(get_data_dir(), port=8080)
+    config.tools.web.searxng_url = url  # Runtime-only mutation, not persisted to config.json
+
+
 # ============================================================================
 # Gateway / Server
 # ============================================================================
@@ -436,6 +470,11 @@ def gateway(
     cron_store_path = get_data_dir() / "cron" / "jobs.json"
     cron = CronService(cron_store_path)
 
+    # Start SearXNG if enabled (must happen BEFORE AgentLoop so searxng_url is populated)
+    _ensure_searxng(config)
+    if config.tools.web.searxng_url:
+        console.print(f"[green]✓[/green] SearXNG: {config.tools.web.searxng_url}")
+
     # Create agent with cron service
     agent = AgentLoop(
         bus=bus,
@@ -447,6 +486,7 @@ def gateway(
         max_iterations=config.agents.defaults.max_tool_iterations,
         memory_window=config.agents.defaults.memory_window,
         exec_config=config.tools.exec,
+        web_config=config.tools.web,
         cron_service=cron,
         restrict_to_workspace=config.tools.restrict_to_workspace,
         session_manager=session_manager,
@@ -560,6 +600,8 @@ def agent(
     else:
         logger.disable("nanobot")
 
+    _ensure_searxng(config)
+
     agent_loop = AgentLoop(
         bus=bus,
         provider=provider,
@@ -570,6 +612,7 @@ def agent(
         max_iterations=config.agents.defaults.max_tool_iterations,
         memory_window=config.agents.defaults.memory_window,
         exec_config=config.tools.exec,
+        web_config=config.tools.web,
         cron_service=cron,
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
@@ -907,6 +950,9 @@ def cron_run(
     config = load_config()
     provider = _make_provider(config)
     bus = MessageBus()
+
+    _ensure_searxng(config)
+
     agent_loop = AgentLoop(
         bus=bus,
         provider=provider,
@@ -917,6 +963,7 @@ def cron_run(
         max_iterations=config.agents.defaults.max_tool_iterations,
         memory_window=config.agents.defaults.memory_window,
         exec_config=config.tools.exec,
+        web_config=config.tools.web,
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
     )
@@ -995,6 +1042,14 @@ def status():
                 console.print(
                     f"{spec.label}: {'[green]✓[/green]' if has_key else '[dim]not set[/dim]'}"
                 )
+
+        # SearXNG status
+        from nanobot.docker.searxng import container_running
+
+        if container_running():
+            console.print("SearXNG: [green]✓ running[/green]")
+        else:
+            console.print("SearXNG: [dim]not running[/dim]")
 
 
 if __name__ == "__main__":

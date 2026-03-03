@@ -1,4 +1,4 @@
-"""Web tools: web_fetch."""
+"""Web tools: web_fetch, web_search."""
 
 import html
 import json
@@ -143,3 +143,84 @@ class WebFetchTool(Tool):
         text = re.sub(r"</(p|div|section|article)>", "\n\n", text, flags=re.I)
         text = re.sub(r"<(br|hr)\s*/?>", "\n", text, flags=re.I)
         return _normalize(_strip_tags(text))
+
+
+class WebSearchTool(Tool):
+    """Search the web via a self-hosted SearXNG instance."""
+
+    name = "web_search"
+    description = "Search the web and return a list of results with titles, URLs, and snippets."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "The search query",
+            },
+            "num_results": {
+                "type": "integer",
+                "description": "Max number of results to return (default 10)",
+                "minimum": 1,
+                "maximum": 30,
+            },
+            "categories": {
+                "type": "string",
+                "description": "Comma-separated SearXNG categories (default: 'general'). Options: general, news, images, videos, science, it, files",
+            },
+        },
+        "required": ["query"],
+    }
+
+    def __init__(self, searxng_url: str):
+        # Strip trailing slash for consistent URL construction
+        self.searxng_url = searxng_url.rstrip("/")
+
+    async def execute(
+        self,
+        query: str,
+        num_results: int = 10,
+        categories: str = "general",
+        **kwargs: Any,
+    ) -> str:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.get(
+                    f"{self.searxng_url}/search",
+                    params={
+                        "q": query,
+                        "format": "json",
+                        "categories": categories,
+                    },
+                    headers={"User-Agent": USER_AGENT},
+                )
+                r.raise_for_status()
+
+            data = r.json()
+            raw_results = data.get("results", [])[:num_results]
+
+            results = [
+                {
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "snippet": item.get("content", ""),
+                    "engines": item.get("engines", []),
+                    "score": item.get("score", 0),
+                }
+                for item in raw_results
+            ]
+
+            return json.dumps(
+                {
+                    "query": query,
+                    "number_of_results": data.get("number_of_results", len(results)),
+                    "results": results,
+                },
+                ensure_ascii=False,
+            )
+        except httpx.ConnectError:
+            return json.dumps(
+                {"error": f"Cannot connect to SearXNG at {self.searxng_url}. Is the server running?"},
+                ensure_ascii=False,
+            )
+        except Exception as e:
+            return json.dumps({"error": str(e), "query": query}, ensure_ascii=False)

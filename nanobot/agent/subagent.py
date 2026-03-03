@@ -11,10 +11,10 @@ from loguru import logger
 from nanobot.agent.tools.filesystem import EditFileTool, ListDirTool, ReadFileTool, WriteFileTool
 from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.agent.tools.shell import ExecTool
-from nanobot.agent.tools.web import WebFetchTool
+from nanobot.agent.tools.web import WebFetchTool, WebSearchTool
 from nanobot.bus.events import InboundMessage
 from nanobot.bus.queue import MessageBus
-from nanobot.config.schema import ExecToolConfig
+from nanobot.config.schema import ExecToolConfig, WebToolsConfig
 from nanobot.providers.base import LLMProvider
 
 
@@ -36,6 +36,7 @@ class SubagentManager:
         temperature: float = 0.7,
         max_tokens: int = 4096,
         exec_config: ExecToolConfig | None = None,
+        web_config: WebToolsConfig | None = None,
         restrict_to_workspace: bool = False,
     ):
         self.provider = provider
@@ -45,6 +46,7 @@ class SubagentManager:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.exec_config = exec_config or ExecToolConfig()
+        self.web_config = web_config
         self.restrict_to_workspace = restrict_to_workspace
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
 
@@ -111,6 +113,8 @@ class SubagentManager:
                 )
             )
             tools.register(WebFetchTool())
+            if self.web_config and self.web_config.searxng_url:
+                tools.register(WebSearchTool(searxng_url=self.web_config.searxng_url))
 
             # Build messages with subagent-specific prompt
             system_prompt = self._build_subagent_prompt(task)

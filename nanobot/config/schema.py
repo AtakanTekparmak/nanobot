@@ -111,7 +111,8 @@ class GatewayConfig(Base):
 class WebToolsConfig(Base):
     """Web tools configuration."""
 
-    pass
+    searxng_enabled: bool = True  # Auto-start SearXNG container via Docker. Disable if running externally.
+    searxng_url: str = ""  # SearXNG instance URL. Auto-populated by gateway when Docker starts the container.
 
 
 class ExecToolConfig(Base):
@@ -231,6 +232,7 @@ class Config(BaseSettings):
         env_map = {
             "OPENROUTER_API_KEY": (self.providers.openrouter, "api_key"),
             "GROQ_API_KEY": (self.channels.telegram, "groq_api_key"),
+            "SEARXNG_URL": (self.tools.web, "searxng_url"),
         }
         for env_var, (obj, attr) in env_map.items():
             if not getattr(obj, attr):
